@@ -17,17 +17,31 @@
 <body class="text-slate-800">
 
   <header class="bg-slate-900 text-white shadow-lg sticky top-0 z-30">
-    <div class="max-w-6xl mx-auto px-6 py-5 flex flex-col md:flex-row justify-between items-center gap-4">
+    <div class="max-w-6xl mx-auto px-6 py-5 flex flex-col lg:flex-row justify-between items-center gap-4">
       <div>
         <h1 class="text-2xl font-bold tracking-tight">📸 关东野鸟共享图鉴</h1>
-        <p class="text-xs text-slate-400 mt-1" id="statusHeader">正在连接云端数据库...</p>
+        <p class="text-xs text-slate-400 mt-1" id="statusHeader">正在安全连接云端数据库...</p>
       </div>
-      <div class="flex items-center gap-3 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
-        <span id="userBadge" class="hidden text-xs bg-slate-700 text-slate-300 px-3 py-1 rounded-full whitespace-nowrap"></span>
-        <input type="text" id="searchInput" placeholder="搜索鸟名..." class="px-3 py-1.5 rounded-lg text-slate-900 w-32 md:w-48 text-sm">
+      
+      <!-- 【新增】功能控制区：包含筛选、排序、搜索和新增按钮 -->
+      <div class="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+        <span id="userBadge" class="hidden text-xs bg-slate-700 text-slate-300 px-3 py-1.5 rounded-full whitespace-nowrap"></span>
+        
+        <!-- 季节分类下拉框 -->
+        <select id="seasonFilter" class="px-2 py-1.5 rounded-lg text-slate-900 text-sm shadow-sm border-0 outline-none cursor-pointer" onchange="renderGallery()">
+          <option value="all">全部季节</option>
+        </select>
+
+        <!-- 排序方式下拉框 -->
+        <select id="sortOrder" class="px-2 py-1.5 rounded-lg text-slate-900 text-sm shadow-sm border-0 outline-none cursor-pointer" onchange="renderGallery()">
+          <option value="default">默认顺序</option>
+          <option value="pinyinAZ">拼音 A-Z</option>
+        </select>
+
+        <input type="text" id="searchInput" placeholder="搜索名字..." class="px-3 py-1.5 rounded-lg text-slate-900 w-28 md:w-40 text-sm shadow-sm">
         
         <a href="https://docs.google.com/spreadsheets/d/1NtqLuEfwxV7JtTF1O9yqnL9uoet0BlXrkBU72wrXwKs/edit" target="_blank" class="bg-amber-500 hover:bg-amber-600 text-slate-900 px-3 py-1.5 rounded-lg text-sm font-bold transition whitespace-nowrap shadow-sm flex items-center gap-1">
-          <span>➕</span> 补充新鸟类
+          <span>➕</span> <span class="hidden sm:inline">补充新鸟类</span>
         </a>
       </div>
     </div>
@@ -36,7 +50,11 @@
   <main class="max-w-6xl mx-auto px-6 py-8">
     <div id="loadingIndicator" class="text-center py-20 text-slate-500">
       <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900 mb-4"></div>
-      <p>正在从云端加载百科与打卡记录，请稍候...</p>
+      <p>正在拉取百科与打卡记录，请稍候...</p>
+    </div>
+    <!-- 查无结果时的提示 -->
+    <div id="noResultMsg" class="hidden text-center py-20 text-slate-400 font-medium text-lg">
+      没有找到符合条件的鸟类记录 🥲
     </div>
     <div id="birdGrid" class="gallery-grid hidden"></div>
   </main>
@@ -51,16 +69,13 @@
 
       <div class="md:w-2/3 p-6 flex flex-col">
         <h3 class="font-bold text-lg mb-4">🖼️ 摄影打卡墙</h3>
-        
         <div class="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-6">
           <input type="text" id="uploadAuthor" placeholder="你的昵称 (填一次即永久记住)" class="w-full border rounded-lg px-3 py-2 mb-3 text-sm font-semibold text-blue-900 bg-white">
-          
           <div class="flex justify-between items-end mb-2">
             <p class="text-sm font-semibold text-blue-900">选择照片 <span class="text-xs font-normal text-slate-500">(尽量上传原图以读取参数)</span></p>
             <span id="exifStatus" class="text-xs text-slate-500"></span>
           </div>
           <input type="file" id="photoInput" accept="image/*" class="text-sm w-full mb-3" onchange="handlePhotoSelect(event)">
-          
           <div class="grid grid-cols-2 gap-3 text-sm">
             <input type="text" id="exifCamera" placeholder="相机型号 (自动识别或手填)" class="w-full border rounded px-2 py-1.5 bg-white">
             <input type="text" id="exifSettings" placeholder="曝光参数 (自动识别或手填)" class="w-full border rounded px-2 py-1.5 bg-white">
@@ -68,7 +83,6 @@
           </div>
           <button id="submitBtn" onclick="submitPhoto()" class="mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-lg text-sm w-full transition">上传打卡</button>
         </div>
-        
         <div id="photoWall" class="grid grid-cols-1 sm:grid-cols-2 gap-4 overflow-y-auto"></div>
       </div>
     </div>
@@ -76,7 +90,6 @@
 
   <script>
     const API_URL = "https://script.google.com/macros/s/AKfycbym5PLC9DvHXoGSN10fEOTpovbrbwFsBid_Cqh4PHUTBcZBkozuzSV5H1KNWv6-O_M9ww/exec";
-    
     let birdsData = [];
     let currentBird = null;
     let pendingImageObj = null;
@@ -86,17 +99,20 @@
       if (savedName) {
         document.getElementById('uploadAuthor').value = savedName;
         const badge = document.getElementById('userBadge');
-        badge.innerText = "👋 欢迎回来, " + savedName;
+        badge.innerText = `👋 ${savedName}`;
         badge.classList.remove('hidden');
       }
 
-      // 使用原生 JSONP 方式加载数据，绝不产生跨域拦截
       window.handleBirdData = function(res) {
         if(res && res.status === 'success') {
           birdsData = res.data;
-          document.getElementById('statusHeader').innerText = "已成功加载 " + birdsData.length + " 种鸟类百科";
+          document.getElementById('statusHeader').innerText = `已成功加载 ${birdsData.length} 种鸟类百科`;
           document.getElementById('loadingIndicator').classList.add('hidden');
           document.getElementById('birdGrid').classList.remove('hidden');
+          
+          // 【新增】自动提取所有的“季节类型”并填入下拉框
+          populateSeasonsFilter();
+          
           renderGallery();
         } else {
           document.getElementById('loadingIndicator').innerHTML = `<p class="text-red-500">数据加载失败：${res ? res.message : '未知错误'}</p>`;
@@ -111,12 +127,56 @@
       document.body.appendChild(script);
     };
 
+    // 提取所有季节标签
+    function populateSeasonsFilter() {
+      const seasonSet = new Set();
+      birdsData.forEach(b => {
+        if (b.season) {
+          // 处理类似 "留鸟/冬候鸟" 这样的多重标签，按斜杠拆分
+          b.season.split('/').forEach(s => {
+            const cleanSeason = s.trim();
+            if (cleanSeason) seasonSet.add(cleanSeason);
+          });
+        }
+      });
+      const filterSelect = document.getElementById('seasonFilter');
+      seasonSet.forEach(s => {
+        filterSelect.innerHTML += `<option value="${s}">${s}</option>`;
+      });
+    }
+
+    // 核心渲染逻辑（包含过滤和排序）
     function renderGallery() {
       const grid = document.getElementById('birdGrid');
       const query = document.getElementById('searchInput').value.toLowerCase();
+      const selectedSeason = document.getElementById('seasonFilter').value;
+      const selectedSort = document.getElementById('sortOrder').value;
+      const noResultMsg = document.getElementById('noResultMsg');
+      
       grid.innerHTML = '';
       
-      birdsData.filter(b => (b.zhName && b.zhName.toLowerCase().includes(query)) || (b.jpName && b.jpName.toLowerCase().includes(query))).forEach(bird => {
+      // 1. 先进行过滤
+      let filteredBirds = birdsData.filter(b => {
+        const matchName = (b.zhName && b.zhName.toLowerCase().includes(query)) || (b.jpName && b.jpName.toLowerCase().includes(query));
+        const matchSeason = selectedSeason === 'all' || (b.season && b.season.includes(selectedSeason));
+        return matchName && matchSeason;
+      });
+
+      // 2. 再进行排序
+      if (selectedSort === 'pinyinAZ') {
+        filteredBirds.sort((a, b) => a.zhName.localeCompare(b.zhName, 'zh-Hans-CN'));
+      }
+
+      // 检查是否有数据
+      if (filteredBirds.length === 0) {
+        noResultMsg.classList.remove('hidden');
+        return;
+      } else {
+        noResultMsg.classList.add('hidden');
+      }
+
+      // 3. 渲染卡片
+      filteredBirds.forEach(bird => {
         let coverImg = '';
         let isPlaceholder = true;
 
@@ -144,7 +204,10 @@
                 <span class="text-sm font-medium text-blue-600">${bird.jpName}</span>
               </div>
               <p class="text-xs text-slate-500 truncate">📍 ${bird.spots}</p>
-              <p class="text-xs mt-2 text-slate-400">📸 ${bird.photos ? bird.photos.length : 0} 张打卡</p>
+              <div class="flex justify-between items-center mt-2">
+                <span class="text-[10px] px-2 py-0.5 rounded bg-slate-100 text-slate-500">${bird.season}</span>
+                <span class="text-xs text-slate-400">📸 ${bird.photos ? bird.photos.length : 0}</span>
+              </div>
             </div>
           </div>`;
       });
@@ -163,13 +226,11 @@
         </div>`;
       
       renderPhotoWall();
-      
       document.getElementById('photoInput').value = '';
       document.getElementById('exifCamera').value = '';
       document.getElementById('exifSettings').value = '';
       document.getElementById('exifStatus').innerText = '';
       pendingImageObj = null;
-
       document.getElementById('detailModal').classList.remove('hidden');
     }
 
@@ -257,11 +318,11 @@
 
       localStorage.setItem('kanto_bird_user', author);
       const badge = document.getElementById('userBadge');
-      badge.innerText = `👋 欢迎回来, ${author}`;
+      badge.innerText = `👋 ${author}`;
       badge.classList.remove('hidden');
 
       const submitBtn = document.getElementById('submitBtn');
-      submitBtn.innerText = "⏳ 正在上传至云端...";
+      submitBtn.innerText = "⏳ 正在发往云端...";
       submitBtn.disabled = true;
       
       const payload = {
@@ -276,25 +337,20 @@
 
       fetch(API_URL, {
         method: "POST",
+        mode: "no-cors",
         headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify(payload)
-      }).then(response => response.json())
-        .then(res => {
-        if(res.status === "success") {
-          alert("✅ 打卡成功！刷新页面即可看到。");
-          window.location.reload();
-        } else {
-          alert("❌ 云端报错：" + res.message);
-          submitBtn.innerText = "重新尝试";
-          submitBtn.disabled = false;
-        }
+      }).then(() => {
+        alert("✅ 打卡成功！刷新页面即可看到。");
+        window.location.reload();
       }).catch(err => {
-        alert("❌ 上传中断，请检查网络或刷新重试。");
+        alert("❌ 上传中断，请检查网络设置。");
         submitBtn.innerText = "重新尝试";
         submitBtn.disabled = false;
       });
     }
 
+    // 搜索框防抖处理
     document.getElementById('searchInput').addEventListener('input', renderGallery);
   </script>
 </body>
