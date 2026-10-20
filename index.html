@@ -17,14 +17,19 @@
 <body class="text-slate-800">
 
   <header class="bg-slate-900 text-white shadow-lg sticky top-0 z-30">
-    <div class="max-w-6xl mx-auto px-6 py-5 flex justify-between items-center">
+    <div class="max-w-6xl mx-auto px-6 py-5 flex flex-col md:flex-row justify-between items-center gap-4">
       <div>
         <h1 class="text-2xl font-bold tracking-tight">📸 关东野鸟共享图鉴</h1>
         <p class="text-xs text-slate-400 mt-1" id="statusHeader">正在连接云端数据库...</p>
       </div>
-      <div class="flex items-center gap-3">
-        <span id="userBadge" class="hidden text-xs bg-slate-700 text-slate-300 px-3 py-1 rounded-full"></span>
-        <input type="text" id="searchInput" placeholder="搜索中文/日文名..." class="px-4 py-1.5 rounded-lg text-slate-900 w-48 text-sm">
+      <div class="flex items-center gap-3 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
+        <span id="userBadge" class="hidden text-xs bg-slate-700 text-slate-300 px-3 py-1 rounded-full whitespace-nowrap"></span>
+        <input type="text" id="searchInput" placeholder="搜索鸟名..." class="px-3 py-1.5 rounded-lg text-slate-900 w-32 md:w-48 text-sm">
+        
+        <!-- 【新增】直达 Google 表格的按钮 -->
+        <a href="https://docs.google.com/spreadsheets/d/1NtqLuEfwxV7JtTF1O9yqnL9uoet0BlXrkBU72wrXwKs/edit" target="_blank" class="bg-amber-500 hover:bg-amber-600 text-slate-900 px-3 py-1.5 rounded-lg text-sm font-bold transition whitespace-nowrap shadow-sm flex items-center gap-1">
+          <span>➕</span> 补充新鸟类
+        </a>
       </div>
     </div>
   </header>
