@@ -26,7 +26,6 @@
         <span id="userBadge" class="hidden text-xs bg-slate-700 text-slate-300 px-3 py-1 rounded-full whitespace-nowrap"></span>
         <input type="text" id="searchInput" placeholder="搜索鸟名..." class="px-3 py-1.5 rounded-lg text-slate-900 w-32 md:w-48 text-sm">
         
-        <!-- 【新增】直达 Google 表格的按钮 -->
         <a href="https://docs.google.com/spreadsheets/d/1NtqLuEfwxV7JtTF1O9yqnL9uoet0BlXrkBU72wrXwKs/edit" target="_blank" class="bg-amber-500 hover:bg-amber-600 text-slate-900 px-3 py-1.5 rounded-lg text-sm font-bold transition whitespace-nowrap shadow-sm flex items-center gap-1">
           <span>➕</span> 补充新鸟类
         </a>
@@ -87,22 +86,22 @@
       if (savedName) {
         document.getElementById('uploadAuthor').value = savedName;
         const badge = document.getElementById('userBadge');
-        badge.innerText = "👋 欢迎回来, " + savedName;
+        badge.innerText = `👋 欢迎回来, ${savedName}`;
         badge.classList.remove('hidden');
       }
 
       fetch(API_URL).then(r => r.json()).then(res => {
         if(res.status === 'success') {
           birdsData = res.data;
-          document.getElementById('statusHeader').innerText = "已成功加载 " + birdsData.length + " 种鸟类百科";
+          document.getElementById('statusHeader').innerText = `已成功加载 ${birdsData.length} 种鸟类百科`;
           document.getElementById('loadingIndicator').classList.add('hidden');
           document.getElementById('birdGrid').classList.remove('hidden');
           renderGallery();
         } else {
-          document.getElementById('loadingIndicator').innerHTML = "<p class='text-red-500'>数据加载失败：" + res.message + "</p>";
+          document.getElementById('loadingIndicator').innerHTML = `<p class="text-red-500">数据加载失败：${res.message}</p>`;
         }
       }).catch(err => {
-        document.getElementById('loadingIndicator').innerHTML = "<p class='text-red-500'>连接数据库失败，请刷新重试。</p>";
+        document.getElementById('loadingIndicator').innerHTML = `<p class="text-red-500">连接数据库失败，请刷新重试。</p>`;
       });
     };
 
@@ -124,39 +123,39 @@
 
         if(coverImg && coverImg.includes('drive.google.com')) {
           const idMatch = coverImg.match(/[-\w]{25,}/);
-          if (idMatch) coverImg = "https://drive.google.com/thumbnail?id=" + idMatch[0] + "&sz=w800";
+          if (idMatch) coverImg = `https://drive.google.com/thumbnail?id=${idMatch[0]}&sz=w800`;
         }
 
         let imageHtml = isPlaceholder 
-          ? '<div class="w-full h-full flex flex-col items-center justify-center text-slate-400 bg-slate-50 border-b border-slate-100"><span class="text-4xl mb-2 opacity-30">📷</span><span class="text-xs font-medium tracking-wider">首张照片等你来打卡</span></div>'
-          : '<img src="' + coverImg + '" class="w-full h-full object-cover">';
+          ? `<div class="w-full h-full flex flex-col items-center justify-center text-slate-400 bg-slate-50 border-b border-slate-100"><span class="text-4xl mb-2 opacity-30">📷</span><span class="text-xs font-medium tracking-wider">首张照片等你来打卡</span></div>`
+          : `<img src="${coverImg}" class="w-full h-full object-cover">`;
 
-        grid.innerHTML += 
-          '<div class="bird-card bg-white rounded-xl overflow-hidden border border-slate-200" onclick="openBirdModal(\\'' + bird.id + '\\')">' +
-            '<div class="h-48 w-full bg-slate-100 relative">' + imageHtml + '</div>' +
-            '<div class="p-4">' +
-              '<div class="flex justify-between items-baseline mb-1">' +
-                '<h2 class="font-bold text-lg">' + bird.zhName + '</h2>' +
-                '<span class="text-sm font-medium text-blue-600">' + bird.jpName + '</span>' +
-              '</div>' +
-              '<p class="text-xs text-slate-500 truncate">📍 ' + bird.spots + '</p>' +
-              '<p class="text-xs mt-2 text-slate-400">📸 ' + (bird.photos ? bird.photos.length : 0) + ' 张打卡</p>' +
-            '</div>' +
-          '</div>';
+        grid.innerHTML += `
+          <div class="bird-card bg-white rounded-xl overflow-hidden border border-slate-200" onclick="openBirdModal('${bird.id}')">
+            <div class="h-48 w-full bg-slate-100 relative">${imageHtml}</div>
+            <div class="p-4">
+              <div class="flex justify-between items-baseline mb-1">
+                <h2 class="font-bold text-lg">${bird.zhName}</h2>
+                <span class="text-sm font-medium text-blue-600">${bird.jpName}</span>
+              </div>
+              <p class="text-xs text-slate-500 truncate">📍 ${bird.spots}</p>
+              <p class="text-xs mt-2 text-slate-400">📸 ${bird.photos ? bird.photos.length : 0} 张打卡</p>
+            </div>
+          </div>`;
       });
     }
 
     function openBirdModal(id) {
       currentBird = birdsData.find(b => b.id === id);
-      document.getElementById('birdInfoBox').innerHTML = 
-        '<h2 class="text-3xl font-bold text-slate-900 mb-1">' + currentBird.zhName + '</h2>' +
-        '<p class="text-lg text-blue-700 font-semibold mb-4">' + currentBird.jpName + '</p>' +
-        '<div class="space-y-4 text-sm text-slate-700">' +
-          '<div><span class="font-bold block text-slate-900">英文名</span>' + currentBird.enName + '</div>' +
-          '<div><span class="font-bold block text-slate-900">季节类型</span><span class="inline-block bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-xs mt-1">' + currentBird.season + '</span></div>' +
-          '<div><span class="font-bold block text-slate-900">观测点</span>' + currentBird.spots + '</div>' +
-          '<div><span class="font-bold block text-slate-900">外观习性</span>' + currentBird.desc + '</div>' +
-        '</div>';
+      document.getElementById('birdInfoBox').innerHTML = `
+        <h2 class="text-3xl font-bold text-slate-900 mb-1">${currentBird.zhName}</h2>
+        <p class="text-lg text-blue-700 font-semibold mb-4">${currentBird.jpName}</p>
+        <div class="space-y-4 text-sm text-slate-700">
+          <div><span class="font-bold block text-slate-900">英文名</span>${currentBird.enName}</div>
+          <div><span class="font-bold block text-slate-900">季节类型</span><span class="inline-block bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-xs mt-1">${currentBird.season}</span></div>
+          <div><span class="font-bold block text-slate-900">观测点</span>${currentBird.spots}</div>
+          <div><span class="font-bold block text-slate-900">外观习性</span>${currentBird.desc}</div>
+        </div>`;
       
       renderPhotoWall();
       
@@ -180,7 +179,7 @@
         let imgUrl = p.url;
         if(imgUrl && imgUrl.includes('drive.google.com')) {
            const idMatch = imgUrl.match(/[-\w]{25,}/);
-           if (idMatch) imgUrl = "https://drive.google.com/thumbnail?id=" + idMatch[0] + "&sz=w800";
+           if (idMatch) imgUrl = `https://drive.google.com/thumbnail?id=${idMatch[0]}&sz=w800`;
         }
         
         let isStarred = (p.location && p.location.includes('⭐')) || (p.author && p.author.includes('⭐')) || (p.cameraInfo && p.cameraInfo.includes('⭐'));
@@ -188,23 +187,24 @@
         let locText = (p.location || '未知').replace('⭐', '');
         let camText = (p.cameraInfo || '无器材信息').replace('⭐', '');
 
-        let starBadge = isStarred ? '<div class="absolute top-2 right-2 bg-amber-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-md z-10">⭐ 封面精选</div>' : '';
+        let starBadge = isStarred ? `<div class="absolute top-2 right-2 bg-amber-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-md z-10">⭐ 封面精选</div>` : '';
         let borderClass = isStarred ? 'border-amber-400 ring-2 ring-amber-100' : 'border-slate-200';
 
-        return '<div class="border ' + borderClass + ' rounded-xl overflow-hidden bg-white shadow-sm relative">' +
-          starBadge +
-          '<div class="h-40 bg-slate-100 flex items-center justify-center">' +
-            '<img src="' + imgUrl + '" class="w-full h-full object-cover">' +
-          '</div>' +
-          '<div class="p-3 text-[11px] text-slate-600">' +
-            '<div class="flex justify-between font-bold text-slate-800 text-xs mb-1">' +
-              '<span>👤 ' + authorText + '</span>' +
-              '<span class="text-slate-400 font-normal">' + p.date + '</span>' +
-            '</div>' +
-            '<p>📍 ' + locText + '</p>' +
-            '<p class="text-slate-400 truncate mt-1">📷 ' + camText + '</p>' +
-          '</div>' +
-        '</div>';
+        return `
+        <div class="border ${borderClass} rounded-xl overflow-hidden bg-white shadow-sm relative">
+          ${starBadge}
+          <div class="h-40 bg-slate-100 flex items-center justify-center">
+            <img src="${imgUrl}" class="w-full h-full object-cover">
+          </div>
+          <div class="p-3 text-[11px] text-slate-600">
+            <div class="flex justify-between font-bold text-slate-800 text-xs mb-1">
+              <span>👤 ${authorText}</span>
+              <span class="text-slate-400 font-normal">${p.date}</span>
+            </div>
+            <p>📍 ${locText}</p>
+            <p class="text-slate-400 truncate mt-1">📷 ${camText}</p>
+          </div>
+        </div>`;
       }).join('');
     }
 
@@ -227,10 +227,10 @@
         if (exifData && (exifData.Make || exifData.FNumber)) {
           document.getElementById('exifCamera').value = [exifData.Make, exifData.Model].filter(Boolean).join(' ') || '';
           let settings = [];
-          if (exifData.FNumber) settings.push("f/" + exifData.FNumber);
-          if (exifData.ExposureTime) settings.push("1/" + Math.round(1 / exifData.ExposureTime) + "s");
-          if (exifData.ISO) settings.push("ISO " + exifData.ISO);
-          if (exifData.FocalLength) settings.push(exifData.FocalLength + "mm");
+          if (exifData.FNumber) settings.push(`f/${exifData.FNumber}`);
+          if (exifData.ExposureTime) settings.push(`1/${Math.round(1 / exifData.ExposureTime)}s`);
+          if (exifData.ISO) settings.push(`ISO ${exifData.ISO}`);
+          if (exifData.FocalLength) settings.push(`${exifData.FocalLength}mm`);
           document.getElementById('exifSettings').value = settings.join(', ');
           
           statusText.innerText = "✅ 成功读取参数";
@@ -252,7 +252,7 @@
 
       localStorage.setItem('kanto_bird_user', author);
       const badge = document.getElementById('userBadge');
-      badge.innerText = "👋 欢迎回来, " + author;
+      badge.innerText = `👋 欢迎回来, ${author}`;
       badge.classList.remove('hidden');
 
       const submitBtn = document.getElementById('submitBtn');
