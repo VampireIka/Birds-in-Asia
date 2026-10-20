@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>关东野鸟共享图鉴</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/exifr/dist/lite.umd.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/exifr/dist/full.umd.js"></script>
   <style>
     body { background-color: #f8fafc; font-family: system-ui, -apple-system, sans-serif; }
     .gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem; }
@@ -22,19 +22,21 @@
         <h1 class="text-2xl font-bold tracking-tight">📸 关东野鸟共享图鉴</h1>
         <p class="text-xs text-slate-400 mt-1" id="statusHeader">正在连接云端数据库...</p>
       </div>
-      <input type="text" id="searchInput" placeholder="搜索中文/日文名..." class="px-4 py-2 rounded-lg text-slate-900 w-64">
+      <div class="flex items-center gap-3">
+        <span id="userBadge" class="hidden text-xs bg-slate-700 text-slate-300 px-3 py-1 rounded-full"></span>
+        <input type="text" id="searchInput" placeholder="搜索中文/日文名..." class="px-4 py-1.5 rounded-lg text-slate-900 w-48 text-sm">
+      </div>
     </div>
   </header>
 
   <main class="max-w-6xl mx-auto px-6 py-8">
     <div id="loadingIndicator" class="text-center py-20 text-slate-500">
       <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900 mb-4"></div>
-      <p>正在从 Google Sheets 加载百科与打卡记录，请稍候...</p>
+      <p>正在从云端加载百科与打卡记录，请稍候...</p>
     </div>
     <div id="birdGrid" class="gallery-grid hidden"></div>
   </main>
 
-  <!-- 详情页 -->
   <div id="detailModal" class="fixed inset-0 modal-overlay hidden z-40 flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl relative flex flex-col md:flex-row">
       <button onclick="closeModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 text-3xl font-bold z-50">&times;</button>
@@ -47,12 +49,17 @@
         <h3 class="font-bold text-lg mb-4">🖼️ 摄影打卡墙</h3>
         
         <div class="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-6">
-          <input type="text" id="uploadAuthor" placeholder="你的昵称" class="w-full border rounded-lg px-3 py-2 mb-3 text-sm">
+          <input type="text" id="uploadAuthor" placeholder="你的昵称 (填一次即永久记住)" class="w-full border rounded-lg px-3 py-2 mb-3 text-sm font-semibold text-blue-900 bg-white">
+          
+          <div class="flex justify-between items-end mb-2">
+            <p class="text-sm font-semibold text-blue-900">选择照片 <span class="text-xs font-normal text-slate-500">(尽量上传原图以读取参数)</span></p>
+            <span id="exifStatus" class="text-xs text-slate-500"></span>
+          </div>
           <input type="file" id="photoInput" accept="image/*" class="text-sm w-full mb-3" onchange="handlePhotoSelect(event)">
           
           <div class="grid grid-cols-2 gap-3 text-sm">
-            <input type="text" id="exifCamera" placeholder="相机型号" class="w-full border rounded px-2 py-1.5 bg-white">
-            <input type="text" id="exifSettings" placeholder="曝光参数" class="w-full border rounded px-2 py-1.5 bg-white">
+            <input type="text" id="exifCamera" placeholder="相机型号 (自动识别或手填)" class="w-full border rounded px-2 py-1.5 bg-white">
+            <input type="text" id="exifSettings" placeholder="曝光参数 (自动识别或手填)" class="w-full border rounded px-2 py-1.5 bg-white">
             <input type="text" id="photoLocation" placeholder="拍摄地点" class="col-span-2 w-full border rounded px-2 py-1.5 bg-white">
           </div>
           <button id="submitBtn" onclick="submitPhoto()" class="mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-lg text-sm w-full transition">上传打卡</button>
@@ -71,24 +78,24 @@
     let currentBird = null;
     let pendingImageObj = null;
 
-    // 1. 页面加载时请求数据
     window.onload = function() {
-      fetch(API_URL)
-        .then(response => response.json())
-        .then(res => {
-          if(res.status === 'success') {
-            birdsData = res.data;
-            document.getElementById('statusHeader').innerText = `已成功加载 ${birdsData.length} 种鸟类百科`;
-            document.getElementById('loadingIndicator').classList.add('hidden');
-            document.getElementById('birdGrid').classList.remove('hidden');
-            renderGallery();
-          } else {
-            alert("读取数据失败：" + res.message);
-          }
-        })
-        .catch(err => {
-          document.getElementById('loadingIndicator').innerHTML = `<p class="text-red-500">连接数据库失败，请刷新重试。<br>${err}</p>`;
-        });
+      const savedName = localStorage.getItem('kanto_bird_user');
+      if (savedName) {
+        document.getElementById('uploadAuthor').value = savedName;
+        const badge = document.getElementById('userBadge');
+        badge.innerText = `👋 欢迎回来, ${savedName}`;
+        badge.classList.remove('hidden');
+      }
+
+      fetch(API_URL).then(r => r.json()).then(res => {
+        if(res.status === 'success') {
+          birdsData = res.data;
+          document.getElementById('statusHeader').innerText = `已成功加载 ${birdsData.length} 种鸟类百科`;
+          document.getElementById('loadingIndicator').classList.add('hidden');
+          document.getElementById('birdGrid').classList.remove('hidden');
+          renderGallery();
+        }
+      });
     };
 
     function renderGallery() {
@@ -97,17 +104,37 @@
       grid.innerHTML = '';
       
       birdsData.filter(b => (b.zhName && b.zhName.toLowerCase().includes(query)) || (b.jpName && b.jpName.toLowerCase().includes(query))).forEach(bird => {
-        // 如果有打卡照片，用第一张打卡照当封面，否则用表格里的默认图
-        let coverImg = bird.photos && bird.photos.length > 0 ? bird.photos[0].url : bird.cover;
-        // Google Drive 的图片链接如果不是直接下载格式，前端可能会因为 CORS 无法直接显示。这里做一个简单的替换。
-        if(coverImg.includes('drive.google.com/file/d/')) {
+        
+        let coverImg = '';
+        let isPlaceholder = true;
+
+        if (bird.photos && bird.photos.length > 0) {
+          // 查找是否有人工指定的精选封面（带⭐）
+          let starredPhoto = bird.photos.find(p => (p.location && p.location.includes('⭐')) || (p.author && p.author.includes('⭐')) || (p.cameraInfo && p.cameraInfo.includes('⭐')));
+          
+          if (starredPhoto) {
+            coverImg = starredPhoto.url;
+          } else {
+            // 没有精选，则拿最新上传的照片
+            coverImg = bird.photos[0].url;
+          }
+          isPlaceholder = false;
+        }
+
+        // 转换 Google Drive 图片为预览格式
+        if(coverImg && coverImg.includes('drive.google.com')) {
           const idMatch = coverImg.match(/[-\w]{25,}/);
           if (idMatch) coverImg = `https://drive.google.com/thumbnail?id=${idMatch[0]}&sz=w800`;
         }
-        
+
         grid.innerHTML += `
           <div class="bird-card bg-white rounded-xl overflow-hidden border border-slate-200" onclick="openBirdModal('${bird.id}')">
-            <div class="h-48 w-full bg-slate-100 relative"><img src="${coverImg}" class="w-full h-full object-cover"></div>
+            <div class="h-48 w-full bg-slate-100 relative">
+              ${isPlaceholder 
+                ? `<div class="w-full h-full flex flex-col items-center justify-center text-slate-400 bg-slate-50 border-b border-slate-100"><span class="text-4xl mb-2 opacity-30">📷</span><span class="text-xs font-medium tracking-wider">首张照片等你来打卡</span></div>`
+                : `<img src="${coverImg}" class="w-full h-full object-cover">`
+              }
+            </div>
             <div class="p-4">
               <div class="flex justify-between items-baseline mb-1">
                 <h2 class="font-bold text-lg">${bird.zhName}</h2>
@@ -133,6 +160,13 @@
         </div>
       `;
       renderPhotoWall();
+      
+      document.getElementById('photoInput').value = '';
+      document.getElementById('exifCamera').value = '';
+      document.getElementById('exifSettings').value = '';
+      document.getElementById('exifStatus').innerText = '';
+      pendingImageObj = null;
+
       document.getElementById('detailModal').classList.remove('hidden');
     }
 
@@ -144,24 +178,32 @@
       }
       
       wall.innerHTML = currentBird.photos.map(p => {
-        // 转换云端照片链接供预览
         let imgUrl = p.url;
         if(imgUrl && imgUrl.includes('drive.google.com')) {
            const idMatch = imgUrl.match(/[-\w]{25,}/);
            if (idMatch) imgUrl = `https://drive.google.com/thumbnail?id=${idMatch[0]}&sz=w800`;
         }
+        
+        let isStarred = (p.location && p.location.includes('⭐')) || (p.author && p.author.includes('⭐')) || (p.cameraInfo && p.cameraInfo.includes('⭐'));
+        
+        // 渲染时把标记用的星号隐藏，保持文字干净
+        let authorText = (p.author || '匿名').replace('⭐', '');
+        let locText = (p.location || '未知').replace('⭐', '');
+        let camText = (p.cameraInfo || '无器材信息').replace('⭐', '');
+
         return `
-        <div class="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm">
+        <div class="border ${isStarred ? 'border-amber-400 ring-2 ring-amber-100' : 'border-slate-200'} rounded-xl overflow-hidden bg-white shadow-sm relative">
+          ${isStarred ? '<div class="absolute top-2 right-2 bg-amber-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-md z-10">⭐ 封面精选</div>' : ''}
           <div class="h-40 bg-slate-100 flex items-center justify-center">
             <img src="${imgUrl}" class="w-full h-full object-cover">
           </div>
           <div class="p-3 text-[11px] text-slate-600">
             <div class="flex justify-between font-bold text-slate-800 text-xs mb-1">
-              <span>👤 ${p.author}</span>
+              <span>👤 ${authorText}</span>
               <span class="text-slate-400 font-normal">${p.date}</span>
             </div>
-            <p>📍 ${p.location}</p>
-            <p class="text-slate-400 truncate mt-1">📷 ${p.cameraInfo}</p>
+            <p>📍 ${locText}</p>
+            <p class="text-slate-400 truncate mt-1">📷 ${camText}</p>
           </div>
         </div>`;
       }).join('');
@@ -172,27 +214,47 @@
     async function handlePhotoSelect(event) {
       const file = event.target.files[0];
       if (!file) return;
+      
+      const statusText = document.getElementById('exifStatus');
+      statusText.innerText = "正在读取参数...";
+      statusText.className = "text-xs text-blue-500";
+
       const reader = new FileReader();
       reader.onload = (e) => { pendingImageObj = e.target.result; };
       reader.readAsDataURL(file);
 
       try {
         const exifData = await exifr.parse(file);
-        if (exifData) {
+        if (exifData && (exifData.Make || exifData.FNumber)) {
           document.getElementById('exifCamera').value = [exifData.Make, exifData.Model].filter(Boolean).join(' ') || '';
           let settings = [];
           if (exifData.FNumber) settings.push(`f/${exifData.FNumber}`);
           if (exifData.ExposureTime) settings.push(`1/${Math.round(1 / exifData.ExposureTime)}s`);
           if (exifData.ISO) settings.push(`ISO ${exifData.ISO}`);
+          if (exifData.FocalLength) settings.push(`${exifData.FocalLength}mm`);
           document.getElementById('exifSettings').value = settings.join(', ');
+          
+          statusText.innerText = "✅ 成功读取参数";
+          statusText.className = "text-xs text-green-600 font-medium";
+        } else {
+          statusText.innerText = "⚠️ 图片无参数(可能是微信压缩图)";
+          statusText.className = "text-xs text-amber-500";
         }
-      } catch (err) {}
+      } catch (err) {
+        statusText.innerText = "⚠️ 读取失败(格式不支持或无参数)";
+        statusText.className = "text-xs text-amber-500";
+      }
     }
 
     function submitPhoto() {
       const author = document.getElementById('uploadAuthor').value.trim();
       const location = document.getElementById('photoLocation').value.trim();
       if (!author || !pendingImageObj) return alert("昵称和照片是必填项！");
+
+      localStorage.setItem('kanto_bird_user', author);
+      const badge = document.getElementById('userBadge');
+      badge.innerText = `👋 欢迎回来, ${author}`;
+      badge.classList.remove('hidden');
 
       const submitBtn = document.getElementById('submitBtn');
       submitBtn.innerText = "⏳ 正在上传至云端...";
@@ -227,3 +289,4 @@
   </script>
 </body>
 </html>
+```<FollowUp><ElicitationsGroup><Elicitation>你可以随便去你的 Google 表格 `Sightings` 里给一行数据打个星号试试，看看网页上的徽章效果如何？</Elicitation><Elicitation>现在的『首张照片等你来打卡』占位图风格你觉得怎么样，需不需要换成更生动一点的图标？</Elicitation></ElicitationsGroup></FollowUp>
