@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>关东野鸟共享图鉴</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/exifr/dist/lite.umd.js"></script>
+  <style>
+    body { background-color: #f8fafc; font-family: system-ui, -apple-system, sans-serif; }
+    .gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem; }
+    .bird-card { cursor: pointer; transition: all 0.3s ease; }
+    .bird-card:hover { transform: translateY(-4px); box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1); }
+    .modal-overlay { background-color: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px); }
+  </style>
+</head>
+<body class="text-slate-800">
+
+  <header class="bg-slate-900 text-white shadow-lg sticky top-0 z-30">
+    <div class="max-w-6xl mx-auto px-6 py-5 flex justify-between items-center">
+      <div>
+        <h1 class="text-2xl font-bold tracking-tight">📸 关东野鸟共享图鉴</h1>
+        <p class="text-xs text-slate-400 mt-1" id="statusHeader">正在连接云端数据库...</p>
+      </div>
+      <input type="text" id="searchInput" placeholder="搜索中文/日文名..." class="px-4 py-2 rounded-lg text-slate-900 w-64">
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-6 py-8">
+    <div id="loadingIndicator" class="text-center py-20 text-slate-500">
+      <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900 mb-4"></div>
+      <p>正在从 Google Sheets 加载百科与打卡记录，请稍候...</p>
+    </div>
+    <div id="birdGrid" class="gallery-grid hidden"></div>
+  </main>
+
+  <!-- 详情页 -->
+  <div id="detailModal" class="fixed inset-0 modal-overlay hidden z-40 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl relative flex flex-col md:flex-row">
+      <button onclick="closeModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 text-3xl font-bold z-50">&times;</button>
+      
+      <div class="md:w-1/3 bg-slate-50 p-6 border-r border-slate-200">
+        <div id="birdInfoBox"></div>
+      </div>
+
+      <div class="md:w-2/3 p-6 flex flex-col">
+        <h3 class="font-bold text-lg mb-4">🖼️ 摄影打卡墙</h3>
+        
+        <div class="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-6">
+          <input type="text" id="uploadAuthor" placeholder="你的昵称" class="w-full border rounded-lg px-3 py-2 mb-3 text-sm">
+          <input type="file" id="photoInput" accept="image/*" class="text-sm w-full mb-3" onchange="handlePhotoSelect(event)">
+          
+          <div class="grid grid-cols-2 gap-3 text-sm">
+            <input type="text" id="exifCamera" placeholder="相机型号" class="w-full border rounded px-2 py-1.5 bg-white">
+            <input type="text" id="exifSettings" placeholder="曝光参数" class="w-full border rounded px-2 py-1.5 bg-white">
+            <input type="text" id="photoLocation" placeholder="拍摄地点" class="col-span-2 w-full border rounded px-2 py-1.5 bg-white">
+          </div>
+          <button id="submitBtn" onclick="submitPhoto()" class="mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-lg text-sm w-full transition">上传打卡</button>
+        </div>
+        
+        <div id="photoWall" class="grid grid-cols-1 sm:grid-cols-2 gap-4 overflow-y-auto"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 你的 API 网址
+    const API_URL = "https://script.google.com/macros/s/AKfycbym5PLC9DvHXoGSN10fEOTpovbrbwFsBid_Cqh4PHUTBcZBkozuzSV5H1KNWv6-O_M9ww/exec";
+    
+    let birdsData = [];
+    let currentBird = null;
+    let pendingImageObj = null;
+
+    // 1. 页面加载时请求数据
+    window.onload = function() {
+      fetch(API_URL)
+        .then(response => response.json())
+        .then(res => {
+          if(res.status === 'success') {
+            birdsData = res.data;
+            document.getElementById('statusHeader').innerText = `已成功加载 ${birdsData.length} 种鸟类百科`;
+            document.getElementById('loadingIndicator').classList.add('hidden');
+            document.getElementById('birdGrid').classList.remove('hidden');
+            renderGallery();
+          } else {
+            alert("读取数据失败：" + res.message);
+          }
+        })
+        .catch(err => {
+          document.getElementById('loadingIndicator').innerHTML = `<p class="text-red-500">连接数据库失败，请刷新重试。<br>${err}</p>`;
+        });
+    };
+
+    function renderGallery() {
+      const grid = document.getElementById('birdGrid');
+      const query = document.getElementById('searchInput').value.toLowerCase();
+      grid.innerHTML = '';
+      
+      birdsData.filter(b => (b.zhName && b.zhName.toLowerCase().includes(query)) || (b.jpName && b.jpName.toLowerCase().includes(query))).forEach(bird => {
+        // 如果有打卡照片，用第一张打卡照当封面，否则用表格里的默认图
+        let coverImg = bird.photos && bird.photos.length > 0 ? bird.photos[0].url : bird.cover;
+        // Google Drive 的图片链接如果不是直接下载格式，前端可能会因为 CORS 无法直接显示。这里做一个简单的替换。
+        if(coverImg.includes('drive.google.com/file/d/')) {
+          const idMatch = coverImg.match(/[-\w]{25,}/);
+          if (idMatch) coverImg = `https://drive.google.com/thumbnail?id=${idMatch[0]}&sz=w800`;
+        }
+        
+        grid.innerHTML += `
+          <div class="bird-card bg-white rounded-xl overflow-hidden border border-slate-200" onclick="openBirdModal('${bird.id}')">
+            <div class="h-48 w-full bg-slate-100 relative"><img src="${coverImg}" class="w-full h-full object-cover"></div>
+            <div class="p-4">
+              <div class="flex justify-between items-baseline mb-1">
+                <h2 class="font-bold text-lg">${bird.zhName}</h2>
+                <span class="text-sm font-medium text-blue-600">${bird.jpName}</span>
+              </div>
+              <p class="text-xs text-slate-500 truncate">📍 ${bird.spots}</p>
+              <p class="text-xs mt-2 text-slate-400">📸 ${bird.photos ? bird.photos.length : 0} 张打卡</p>
+            </div>
+          </div>`;
+      });
+    }
+
+    function openBirdModal(id) {
+      currentBird = birdsData.find(b => b.id === id);
+      document.getElementById('birdInfoBox').innerHTML = `
+        <h2 class="text-3xl font-bold text-slate-900 mb-1">${currentBird.zhName}</h2>
+        <p class="text-lg text-blue-700 font-semibold mb-4">${currentBird.jpName}</p>
+        <div class="space-y-4 text-sm text-slate-700">
+          <div><span class="font-bold block text-slate-900">英文名</span>${currentBird.enName}</div>
+          <div><span class="font-bold block text-slate-900">季节类型</span><span class="inline-block bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-xs mt-1">${currentBird.season}</span></div>
+          <div><span class="font-bold block text-slate-900">观测点</span>${currentBird.spots}</div>
+          <div><span class="font-bold block text-slate-900">外观习性</span>${currentBird.desc}</div>
+        </div>
+      `;
+      renderPhotoWall();
+      document.getElementById('detailModal').classList.remove('hidden');
+    }
+
+    function renderPhotoWall() {
+      const wall = document.getElementById('photoWall');
+      if (!currentBird.photos || currentBird.photos.length === 0) {
+        wall.innerHTML = '<div class="col-span-2 text-center text-slate-400 py-6 text-sm">暂无打卡记录。</div>';
+        return;
+      }
+      
+      wall.innerHTML = currentBird.photos.map(p => {
+        // 转换云端照片链接供预览
+        let imgUrl = p.url;
+        if(imgUrl && imgUrl.includes('drive.google.com')) {
+           const idMatch = imgUrl.match(/[-\w]{25,}/);
+           if (idMatch) imgUrl = `https://drive.google.com/thumbnail?id=${idMatch[0]}&sz=w800`;
+        }
+        return `
+        <div class="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm">
+          <div class="h-40 bg-slate-100 flex items-center justify-center">
+            <img src="${imgUrl}" class="w-full h-full object-cover">
+          </div>
+          <div class="p-3 text-[11px] text-slate-600">
+            <div class="flex justify-between font-bold text-slate-800 text-xs mb-1">
+              <span>👤 ${p.author}</span>
+              <span class="text-slate-400 font-normal">${p.date}</span>
+            </div>
+            <p>📍 ${p.location}</p>
+            <p class="text-slate-400 truncate mt-1">📷 ${p.cameraInfo}</p>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    function closeModal() { document.getElementById('detailModal').classList.add('hidden'); }
+
+    async function handlePhotoSelect(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => { pendingImageObj = e.target.result; };
+      reader.readAsDataURL(file);
+
+      try {
+        const exifData = await exifr.parse(file);
+        if (exifData) {
+          document.getElementById('exifCamera').value = [exifData.Make, exifData.Model].filter(Boolean).join(' ') || '';
+          let settings = [];
+          if (exifData.FNumber) settings.push(`f/${exifData.FNumber}`);
+          if (exifData.ExposureTime) settings.push(`1/${Math.round(1 / exifData.ExposureTime)}s`);
+          if (exifData.ISO) settings.push(`ISO ${exifData.ISO}`);
+          document.getElementById('exifSettings').value = settings.join(', ');
+        }
+      } catch (err) {}
+    }
+
+    function submitPhoto() {
+      const author = document.getElementById('uploadAuthor').value.trim();
+      const location = document.getElementById('photoLocation').value.trim();
+      if (!author || !pendingImageObj) return alert("昵称和照片是必填项！");
+
+      const submitBtn = document.getElementById('submitBtn');
+      submitBtn.innerText = "⏳ 正在上传至云端...";
+      submitBtn.disabled = true;
+      
+      const payload = {
+        birdName: currentBird.zhName,
+        author: author,
+        location: location || "未提供",
+        camera: document.getElementById('exifCamera').value,
+        settings: document.getElementById('exifSettings').value,
+        date: new Date().toLocaleDateString(),
+        imageBase64: pendingImageObj
+      };
+
+      fetch(API_URL, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      }).then(() => {
+        alert("✅ 打卡成功！刷新页面即可看到。");
+        window.location.reload();
+      }).catch(err => {
+        alert("上传失败，请重试。");
+        submitBtn.innerText = "重新尝试";
+        submitBtn.disabled = false;
+      });
+    }
+
+    document.getElementById('searchInput').addEventListener('input', renderGallery);
+  </script>
+</body>
+</html>
