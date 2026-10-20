@@ -86,23 +86,30 @@
       if (savedName) {
         document.getElementById('uploadAuthor').value = savedName;
         const badge = document.getElementById('userBadge');
-        badge.innerText = `👋 欢迎回来, ${savedName}`;
+        badge.innerText = "👋 欢迎回来, " + savedName;
         badge.classList.remove('hidden');
       }
 
-      fetch(API_URL).then(r => r.json()).then(res => {
-        if(res.status === 'success') {
-          birdsData = res.data;
-          document.getElementById('statusHeader').innerText = `已成功加载 ${birdsData.length} 种鸟类百科`;
-          document.getElementById('loadingIndicator').classList.add('hidden');
-          document.getElementById('birdGrid').classList.remove('hidden');
-          renderGallery();
-        } else {
-          document.getElementById('loadingIndicator').innerHTML = `<p class="text-red-500">数据加载失败：${res.message}</p>`;
-        }
-      }).catch(err => {
-        document.getElementById('loadingIndicator').innerHTML = `<p class="text-red-500">连接数据库失败，请刷新重试。</p>`;
-      });
+      // 使用公开的免费 CORS 代理，彻底规避浏览器跨域拦截
+      const proxyUrl = "https://api.allorigins.win/get?url=" + encodeURIComponent(API_URL);
+
+      fetch(proxyUrl)
+        .then(r => r.json())
+        .then(data => {
+          const res = JSON.parse(data.contents);
+          if(res.status === 'success') {
+            birdsData = res.data;
+            document.getElementById('statusHeader').innerText = "已成功加载 " + birdsData.length + " 种鸟类百科";
+            document.getElementById('loadingIndicator').classList.add('hidden');
+            document.getElementById('birdGrid').classList.remove('hidden');
+            renderGallery();
+          } else {
+            document.getElementById('loadingIndicator').innerHTML = "<p class='text-red-500'>数据加载失败：" + res.message + "</p>";
+          }
+        })
+        .catch(err => {
+          document.getElementById('loadingIndicator').innerHTML = "<p class='text-red-500'>连接数据库失败，请检查网络或稍后重试。</p>";
+        });
     };
 
     function renderGallery() {
@@ -111,7 +118,6 @@
       grid.innerHTML = '';
       
       birdsData.filter(b => (b.zhName && b.zhName.toLowerCase().includes(query)) || (b.jpName && b.jpName.toLowerCase().includes(query))).forEach(bird => {
-        
         let coverImg = '';
         let isPlaceholder = true;
 
@@ -123,7 +129,7 @@
 
         if(coverImg && coverImg.includes('drive.google.com')) {
           const idMatch = coverImg.match(/[-\w]{25,}/);
-          if (idMatch) coverImg = `https://drive.google.com/thumbnail?id=${idMatch[0]}&sz=w800`;
+          if (idMatch) coverImg = "https://drive.google.com/thumbnail?id=" + idMatch[0] + "&sz=w800";
         }
 
         let imageHtml = isPlaceholder 
