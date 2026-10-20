@@ -270,20 +270,27 @@
         imageBase64: pendingImageObj
       };
 
-      fetch(API_URL, {
+        fetch(API_URL, {
         method: "POST",
-        mode: "no-cors",
-        headers: { "Content-Type": "application/json" },
+        // 删除了 mode: "no-cors"，让它能正常接收服务端的成功/失败反馈
+        headers: { "Content-Type": "text/plain;charset=utf-8" }, // 必须伪装成纯文本发送，防止被浏览器拦截
         body: JSON.stringify(payload)
-      }).then(() => {
-        alert("✅ 打卡成功！刷新页面即可看到。");
-        window.location.reload();
+      })
+      .then(response => response.json())
+      .then(res => {
+        if(res.status === "success") {
+          alert("✅ 打卡成功！刷新页面即可看到。");
+          window.location.reload();
+        } else {
+          alert("❌ 云端报错：" + res.message);
+          submitBtn.innerText = "重新尝试";
+          submitBtn.disabled = false;
+        }
       }).catch(err => {
-        alert("上传失败，请重试。");
+        alert("❌ 上传中断，请检查网络或刷新重试。");
         submitBtn.innerText = "重新尝试";
         submitBtn.disabled = false;
       });
-    }
 
     document.getElementById('searchInput').addEventListener('input', renderGallery);
   </script>
