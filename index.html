@@ -90,26 +90,25 @@
         badge.classList.remove('hidden');
       }
 
-      // 使用公开的免费 CORS 代理，彻底规避浏览器跨域拦截
-      const proxyUrl = "https://api.allorigins.win/get?url=" + encodeURIComponent(API_URL);
+      // 使用原生 JSONP 方式加载数据，绝不产生跨域拦截
+      window.handleBirdData = function(res) {
+        if(res && res.status === 'success') {
+          birdsData = res.data;
+          document.getElementById('statusHeader').innerText = "已成功加载 " + birdsData.length + " 种鸟类百科";
+          document.getElementById('loadingIndicator').classList.add('hidden');
+          document.getElementById('birdGrid').classList.remove('hidden');
+          renderGallery();
+        } else {
+          document.getElementById('loadingIndicator').innerHTML = `<p class="text-red-500">数据加载失败：${res ? res.message : '未知错误'}</p>`;
+        }
+      };
 
-      fetch(proxyUrl)
-        .then(r => r.json())
-        .then(data => {
-          const res = JSON.parse(data.contents);
-          if(res.status === 'success') {
-            birdsData = res.data;
-            document.getElementById('statusHeader').innerText = "已成功加载 " + birdsData.length + " 种鸟类百科";
-            document.getElementById('loadingIndicator').classList.add('hidden');
-            document.getElementById('birdGrid').classList.remove('hidden');
-            renderGallery();
-          } else {
-            document.getElementById('loadingIndicator').innerHTML = "<p class='text-red-500'>数据加载失败：" + res.message + "</p>";
-          }
-        })
-        .catch(err => {
-          document.getElementById('loadingIndicator').innerHTML = "<p class='text-red-500'>连接数据库失败，请检查网络或稍后重试。</p>";
-        });
+      const script = document.createElement('script');
+      script.src = API_URL + "?callback=handleBirdData";
+      script.onerror = function() {
+        document.getElementById('loadingIndicator').innerHTML = `<p class="text-red-500">连接数据库失败，请检查网络或稍后重试。</p>`;
+      };
+      document.body.appendChild(script);
     };
 
     function renderGallery() {
@@ -129,7 +128,7 @@
 
         if(coverImg && coverImg.includes('drive.google.com')) {
           const idMatch = coverImg.match(/[-\w]{25,}/);
-          if (idMatch) coverImg = "https://drive.google.com/thumbnail?id=" + idMatch[0] + "&sz=w800";
+          if (idMatch) coverImg = `https://drive.google.com/thumbnail?id=${idMatch[0]}&sz=w800`;
         }
 
         let imageHtml = isPlaceholder 
