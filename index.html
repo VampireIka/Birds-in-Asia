@@ -23,22 +23,19 @@
         <p class="text-xs text-slate-400 mt-1" id="statusHeader">正在安全连接云端数据库...</p>
       </div>
       
-      <!-- 【新增】功能控制区：包含筛选、排序、搜索和新增按钮 -->
       <div class="flex flex-wrap items-center gap-2 w-full lg:w-auto">
         <span id="userBadge" class="hidden text-xs bg-slate-700 text-slate-300 px-3 py-1.5 rounded-full whitespace-nowrap"></span>
         
-        <!-- 季节分类下拉框 -->
         <select id="seasonFilter" class="px-2 py-1.5 rounded-lg text-slate-900 text-sm shadow-sm border-0 outline-none cursor-pointer" onchange="renderGallery()">
           <option value="all">全部季节</option>
         </select>
 
-        <!-- 排序方式下拉框 -->
         <select id="sortOrder" class="px-2 py-1.5 rounded-lg text-slate-900 text-sm shadow-sm border-0 outline-none cursor-pointer" onchange="renderGallery()">
           <option value="default">默认顺序</option>
           <option value="pinyinAZ">拼音 A-Z</option>
         </select>
 
-        <input type="text" id="searchInput" placeholder="搜索名字..." class="px-3 py-1.5 rounded-lg text-slate-900 w-28 md:w-40 text-sm shadow-sm">
+        <input type="text" id="searchInput" placeholder="搜索鸟名..." class="px-3 py-1.5 rounded-lg text-slate-900 w-28 md:w-40 text-sm shadow-sm">
         
         <a href="https://docs.google.com/spreadsheets/d/1NtqLuEfwxV7JtTF1O9yqnL9uoet0BlXrkBU72wrXwKs/edit" target="_blank" class="bg-amber-500 hover:bg-amber-600 text-slate-900 px-3 py-1.5 rounded-lg text-sm font-bold transition whitespace-nowrap shadow-sm flex items-center gap-1">
           <span>➕</span> <span class="hidden sm:inline">补充新鸟类</span>
@@ -52,38 +49,45 @@
       <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900 mb-4"></div>
       <p>正在拉取百科与打卡记录，请稍候...</p>
     </div>
-    <!-- 查无结果时的提示 -->
     <div id="noResultMsg" class="hidden text-center py-20 text-slate-400 font-medium text-lg">
       没有找到符合条件的鸟类记录 🥲
     </div>
     <div id="birdGrid" class="gallery-grid hidden"></div>
   </main>
 
+  <!-- 详情弹窗 -->
   <div id="detailModal" class="fixed inset-0 modal-overlay hidden z-40 flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl relative flex flex-col md:flex-row">
+    <div class="bg-white rounded-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto shadow-2xl relative flex flex-col md:flex-row">
       <button onclick="closeModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 text-3xl font-bold z-50">&times;</button>
       
+      <!-- 左侧：百科信息 -->
       <div class="md:w-1/3 bg-slate-50 p-6 border-r border-slate-200">
         <div id="birdInfoBox"></div>
       </div>
 
-      <div class="md:w-2/3 p-6 flex flex-col">
-        <h3 class="font-bold text-lg mb-4">🖼️ 摄影打卡墙</h3>
-        <div class="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-6">
+      <!-- 右侧：上传及打卡历史墙 -->
+      <div class="md:w-2/3 p-6 flex flex-col max-h-[90vh] overflow-y-auto">
+        <h3 class="font-bold text-lg mb-4">🖼️ 摄影打卡与历史记录</h3>
+        
+        <!-- 上传打卡折叠/控制区 -->
+        <div class="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-6 shrink-0">
           <input type="text" id="uploadAuthor" placeholder="你的昵称 (填一次即永久记住)" class="w-full border rounded-lg px-3 py-2 mb-3 text-sm font-semibold text-blue-900 bg-white">
           <div class="flex justify-between items-end mb-2">
-            <p class="text-sm font-semibold text-blue-900">选择照片 <span class="text-xs font-normal text-slate-500">(尽量上传原图以读取参数)</span></p>
+            <p class="text-sm font-semibold text-blue-900">上传新照片 <span class="text-xs font-normal text-slate-500">(尽量上传原图以读取参数)</span></p>
             <span id="exifStatus" class="text-xs text-slate-500"></span>
           </div>
           <input type="file" id="photoInput" accept="image/*" class="text-sm w-full mb-3" onchange="handlePhotoSelect(event)">
           <div class="grid grid-cols-2 gap-3 text-sm">
             <input type="text" id="exifCamera" placeholder="相机型号 (自动识别或手填)" class="w-full border rounded px-2 py-1.5 bg-white">
             <input type="text" id="exifSettings" placeholder="曝光参数 (自动识别或手填)" class="w-full border rounded px-2 py-1.5 bg-white">
-            <input type="text" id="photoLocation" placeholder="拍摄地点" class="col-span-2 w-full border rounded px-2 py-1.5 bg-white">
+            <input type="text" id="photoLocation" placeholder="拍摄地点 (加 ⭐ 可设为封面)" class="col-span-2 w-full border rounded px-2 py-1.5 bg-white">
           </div>
-          <button id="submitBtn" onclick="submitPhoto()" class="mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-lg text-sm w-full transition">上传打卡</button>
+          <button id="submitBtn" onclick="submitPhoto()" class="mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-lg text-sm w-full transition">提交打卡记录</button>
         </div>
-        <div id="photoWall" class="grid grid-cols-1 sm:grid-cols-2 gap-4 overflow-y-auto"></div>
+        
+        <!-- 【修复】历史打卡照片墙：确保有独立的可滚动区域 -->
+        <h4 class="font-bold text-sm text-slate-700 mb-3">大家上传的所有照片 (<span id="photoCountBadge">0</span>)</h4>
+        <div id="photoWall" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></div>
       </div>
     </div>
   </div>
@@ -109,10 +113,7 @@
           document.getElementById('statusHeader').innerText = `已成功加载 ${birdsData.length} 种鸟类百科`;
           document.getElementById('loadingIndicator').classList.add('hidden');
           document.getElementById('birdGrid').classList.remove('hidden');
-          
-          // 【新增】自动提取所有的“季节类型”并填入下拉框
           populateSeasonsFilter();
-          
           renderGallery();
         } else {
           document.getElementById('loadingIndicator').innerHTML = `<p class="text-red-500">数据加载失败：${res ? res.message : '未知错误'}</p>`;
@@ -127,12 +128,10 @@
       document.body.appendChild(script);
     };
 
-    // 提取所有季节标签
     function populateSeasonsFilter() {
       const seasonSet = new Set();
       birdsData.forEach(b => {
         if (b.season) {
-          // 处理类似 "留鸟/冬候鸟" 这样的多重标签，按斜杠拆分
           b.season.split('/').forEach(s => {
             const cleanSeason = s.trim();
             if (cleanSeason) seasonSet.add(cleanSeason);
@@ -145,7 +144,6 @@
       });
     }
 
-    // 核心渲染逻辑（包含过滤和排序）
     function renderGallery() {
       const grid = document.getElementById('birdGrid');
       const query = document.getElementById('searchInput').value.toLowerCase();
@@ -155,19 +153,16 @@
       
       grid.innerHTML = '';
       
-      // 1. 先进行过滤
       let filteredBirds = birdsData.filter(b => {
         const matchName = (b.zhName && b.zhName.toLowerCase().includes(query)) || (b.jpName && b.jpName.toLowerCase().includes(query));
         const matchSeason = selectedSeason === 'all' || (b.season && b.season.includes(selectedSeason));
         return matchName && matchSeason;
       });
 
-      // 2. 再进行排序
       if (selectedSort === 'pinyinAZ') {
         filteredBirds.sort((a, b) => a.zhName.localeCompare(b.zhName, 'zh-Hans-CN'));
       }
 
-      // 检查是否有数据
       if (filteredBirds.length === 0) {
         noResultMsg.classList.remove('hidden');
         return;
@@ -175,7 +170,6 @@
         noResultMsg.classList.add('hidden');
       }
 
-      // 3. 渲染卡片
       filteredBirds.forEach(bird => {
         let coverImg = '';
         let isPlaceholder = true;
@@ -206,7 +200,7 @@
               <p class="text-xs text-slate-500 truncate">📍 ${bird.spots}</p>
               <div class="flex justify-between items-center mt-2">
                 <span class="text-[10px] px-2 py-0.5 rounded bg-slate-100 text-slate-500">${bird.season}</span>
-                <span class="text-xs text-slate-400">📸 ${bird.photos ? bird.photos.length : 0}</span>
+                <span class="text-xs text-slate-400">📸 ${bird.photos ? bird.photos.length : 0} 张打卡</span>
               </div>
             </div>
           </div>`;
@@ -226,20 +220,29 @@
         </div>`;
       
       renderPhotoWall();
+      
       document.getElementById('photoInput').value = '';
       document.getElementById('exifCamera').value = '';
       document.getElementById('exifSettings').value = '';
+      document.getElementById('photoLocation').value = '';
       document.getElementById('exifStatus').innerText = '';
       pendingImageObj = null;
+
       document.getElementById('detailModal').classList.remove('hidden');
     }
 
+    // 【核心修复】完整渲染打卡照片墙
     function renderPhotoWall() {
       const wall = document.getElementById('photoWall');
+      const countBadge = document.getElementById('photoCountBadge');
+      
       if (!currentBird.photos || currentBird.photos.length === 0) {
-        wall.innerHTML = '<div class="col-span-2 text-center text-slate-400 py-6 text-sm">暂无打卡记录。</div>';
+        countBadge.innerText = "0";
+        wall.innerHTML = '<div class="col-span-2 text-center text-slate-400 py-10 bg-slate-50 rounded-xl border border-dashed text-sm">暂无打卡记录，快来上传第一张吧！</div>';
         return;
       }
+      
+      countBadge.innerText = currentBird.photos.length;
       
       wall.innerHTML = currentBird.photos.map(p => {
         let imgUrl = p.url;
@@ -257,18 +260,20 @@
         let borderClass = isStarred ? 'border-amber-400 ring-2 ring-amber-100' : 'border-slate-200';
 
         return `
-        <div class="border ${borderClass} rounded-xl overflow-hidden bg-white shadow-sm relative">
+        <div class="border ${borderClass} rounded-xl overflow-hidden bg-white shadow-sm relative flex flex-col">
           ${starBadge}
-          <div class="h-40 bg-slate-100 flex items-center justify-center">
+          <div class="h-44 bg-slate-100 flex items-center justify-center">
             <img src="${imgUrl}" class="w-full h-full object-cover">
           </div>
-          <div class="p-3 text-[11px] text-slate-600">
-            <div class="flex justify-between font-bold text-slate-800 text-xs mb-1">
-              <span>👤 ${authorText}</span>
-              <span class="text-slate-400 font-normal">${p.date}</span>
+          <div class="p-3 text-[11px] text-slate-600 flex-1 flex flex-col justify-between">
+            <div>
+              <div class="flex justify-between font-bold text-slate-800 text-xs mb-1">
+                <span>👤 ${authorText}</span>
+                <span class="text-slate-400 font-normal">${p.date}</span>
+              </div>
+              <p>📍 ${locText}</p>
             </div>
-            <p>📍 ${locText}</p>
-            <p class="text-slate-400 truncate mt-1">📷 ${camText}</p>
+            <p class="text-slate-400 truncate mt-2 pt-2 border-t border-slate-100">📷 ${camText}</p>
           </div>
         </div>`;
       }).join('');
@@ -350,7 +355,6 @@
       });
     }
 
-    // 搜索框防抖处理
     document.getElementById('searchInput').addEventListener('input', renderGallery);
   </script>
 </body>
